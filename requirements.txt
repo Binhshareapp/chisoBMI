@@ -1,6 +1,5 @@
-streamlit as st
+streamlit
 matplotlib
 pyttsx3
 gTTS
 playsound
-os
