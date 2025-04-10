@@ -1,6 +1,5 @@
 import streamlit as st
 import matplotlib.pyplot as plt
-import pyttsx3
 
 # Hàm tính BMI
 def calculate_bmi(weight, height_m):
@@ -53,27 +52,6 @@ def plot_bmi_chart(bmi, age):
     ax.legend()
     st.pyplot(fig)
 
-# Hàm phát giọng nói với pyttsx3
-def speak_result(bmi, category, advice, age):
-    try:
-        engine = pyttsx3.init()
-        text = f"Chỉ số BMI của bạn là {bmi:.2f}. Phân loại: {category}. Lời khuyên: {advice}"
-        if age <= 17:
-            text += " Với trẻ em, hãy tham khảo bác sĩ để có kết quả chính xác."
-        engine.setProperty('rate', 150)  # Tốc độ nói
-        # Chọn giọng nói tiếng Việt nếu có (Windows thường hỗ trợ tốt hơn)
-        voices = engine.getProperty('voices')
-        for voice in voices:
-            if 'vietnamese' in voice.name.lower() or 'vi' in voice.id.lower():
-                engine.setProperty('voice', voice.id)
-                break
-        engine.say(text)
-        engine.runAndWait()
-        return True
-    except Exception as e:
-        st.error(f"Lỗi khi phát âm thanh với pyttsx3: {e}")
-        return False
-
 # Giao diện Streamlit
 st.title("Tính Chỉ Số BMI Theo Độ Tuổi")
 
@@ -105,10 +83,6 @@ try:
             category, advice = classify_bmi_adult(bmi)
             st.write(f"Phân loại (18+): **{category}**")
             st.write(f"Lời khuyên: {advice}")
-
-        # Phát giọng nói tự động
-        st.write("### Kết quả sẽ được đọc tự động")
-        speak_result(bmi, category, advice, age)
 
         # Vẽ biểu đồ
         st.write("### Biểu đồ trực quan")
