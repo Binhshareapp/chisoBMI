@@ -1,9 +1,6 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import pyttsx3
-from gtts import gTTS
-import playsound
-import os
 
 # Hàm tính BMI
 def calculate_bmi(weight, height_m):
@@ -57,13 +54,19 @@ def plot_bmi_chart(bmi, age):
     st.pyplot(fig)
 
 # Hàm phát giọng nói với pyttsx3
-def speak_result_pyttsx3(bmi, category, advice, age):
+def speak_result(bmi, category, advice, age):
     try:
         engine = pyttsx3.init()
         text = f"Chỉ số BMI của bạn là {bmi:.2f}. Phân loại: {category}. Lời khuyên: {advice}"
         if age <= 17:
             text += " Với trẻ em, hãy tham khảo bác sĩ để có kết quả chính xác."
         engine.setProperty('rate', 150)  # Tốc độ nói
+        # Chọn giọng nói tiếng Việt nếu có (Windows thường hỗ trợ tốt hơn)
+        voices = engine.getProperty('voices')
+        for voice in voices:
+            if 'vietnamese' in voice.name.lower() or 'vi' in voice.id.lower():
+                engine.setProperty('voice', voice.id)
+                break
         engine.say(text)
         engine.runAndWait()
         return True
@@ -71,62 +74,48 @@ def speak_result_pyttsx3(bmi, category, advice, age):
         st.error(f"Lỗi khi phát âm thanh với pyttsx3: {e}")
         return False
 
-# Hàm phát giọng nói với gTTS
-def speak_result_gtts(bmi, category, advice, age):
-    try:
-        text = f"Chỉ số BMI của bạn là {bmi:.2f}. Phân loại: {category}. Lời khuyên: {advice}"
-        if age <= 17:
-            text += " Với trẻ em, hãy tham khảo bác sĩ để có kết quả chính xác."
-        tts = gTTS(text=text, lang='vi', slow=False)
-        audio_file = "bmi_result.mp3"
-        tts.save(audio_file)
-        playsound.playsound(audio_file)
-        os.remove(audio_file)  # Xóa file sau khi phát
-        return True
-    except Exception as e:
-        st.error(f"Lỗi khi phát âm thanh với gTTS: {e}")
-        return False
-
 # Giao diện Streamlit
 st.title("Tính Chỉ Số BMI Theo Độ Tuổi")
 
-# Nhập thông tin từ người dùng
-age = st.number_input("Nhập tuổi (0-100):", min_value=0, max_value=100, step=1)
-weight = st.number_input("Nhập cân nặng (kg):", min_value=1.0, max_value=300.0, step=0.1)
-height_cm = st.number_input("Nhập chiều cao (cm):", min_value=30.0, max_value=300.0, step=0.1)
+# Nhập thông tin từ người dùng với kiểm tra cơ bản
+try:
+    age = st.number_input("Nhập tuổi (0-100):", min_value=0, max_value=100, step=1)
+    weight = st.number_input("Nhập cân nặng (kg):", min_value=1.0, max_value=300.0, step=0.1)
+    height_cm = st.number_input("Nhập chiều cao (cm):", min_value=30.0, max_value=300.0, step=0.1)
 
-# Chuyển đổi chiều cao từ cm sang m
-height_m = height_cm / 100
+    if age < 0 or weight <= 0 or height_cm <= 0:
+        raise ValueError("Tuổi, cân nặng và chiều cao phải lớn hơn 0!")
 
-# Nút tính toán
-if st.button("Tính BMI"):
-    if height_m > 0:  # Đảm bảo chiều cao khác 0
+    # Chuyển đổi chiều cao từ cm sang m
+    height_m = height_cm / 100
+
+    # Nút tính toán
+    if st.button("Tính BMI"):
         bmi = calculate_bmi(weight, height_m)
         st.write(f"Chiều cao: {height_cm} cm = {height_m:.2f} m")
-        st.write(f"Chỉ số BMI của bạn là: **{bmi:.2f}**")
+        st.success(f"Chỉ số BMI của bạn là: **{bmi:.2f}**")
 
         # Phân loại và lời khuyên
         if age <= 17:
             category, advice = classify_bmi_children(bmi, age)
             st.write(f"Phân loại (tuổi {age}): **{category}**")
             st.write(f"Lời khuyên: {advice}")
-            st.write("Lưu ý: Với trẻ em, kết quả chính xác cần tham khảo biểu đồ percentile từ bác sĩ.")
+            st.info("Lưu ý: Với trẻ em, kết quả chính xác cần tham khảo biểu đồ percentile từ bác sĩ.")
         else:
             category, advice = classify_bmi_adult(bmi)
             st.write(f"Phân loại (18+): **{category}**")
             st.write(f"Lời khuyên: {advice}")
 
-        # Phát giọng nói tự động (di chuyển lên trên biểu đồ)
+        # Phát giọng nói tự động
         st.write("### Kết quả sẽ được đọc tự động")
-        if not speak_result_pyttsx3(bmi, category, advice, age):
-            st.warning("Không thể phát âm thanh bằng pyttsx3, thử dùng gTTS...")
-            speak_result_gtts(bmi, category, advice, age)
+        speak_result(bmi, category, advice, age)
 
-        # Vẽ biểu đồ (di chuyển xuống dưới âm thanh)
+        # Vẽ biểu đồ
         st.write("### Biểu đồ trực quan")
         plot_bmi_chart(bmi, age)
-    else:
-        st.error("Chiều cao phải lớn hơn 0!")
+
+except ValueError as e:
+    st.error(f"Lỗi: {e}")
 
 st.write("---")
 st.write("Ứng dụng này cung cấp kết quả tham khảo. Hãy tham khảo ý kiến bác sĩ để đánh giá chính xác.")
